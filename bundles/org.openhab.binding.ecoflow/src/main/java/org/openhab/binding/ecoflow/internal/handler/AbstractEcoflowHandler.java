@@ -56,7 +56,6 @@ import com.google.gson.JsonObject;
 @NonNullByDefault
 abstract class AbstractEcoflowHandler extends BaseThingHandler {
     protected final Logger logger = LoggerFactory.getLogger(AbstractEcoflowHandler.class);
-
     private final SchedulerTask initTask;
     private final SchedulerTask mqttMessageWatchdogTask;
     protected String serialNumber = "<unset>";
@@ -73,7 +72,8 @@ abstract class AbstractEcoflowHandler extends BaseThingHandler {
                 this::checkForStaleMqttMessages);
 
         for (ChannelMapping mapping : mappings) {
-            mappingsByListId.put(mapping.groupKey + "." + mapping.valueKey, mapping);
+            String prefix = mapping.groupKey.isEmpty() ? "" : mapping.groupKey + ".";
+            mappingsByListId.put(prefix + mapping.valueKey, mapping);
             Map<String, ChannelMapping> mqttMappings = mappingsByMqttId.get(mapping.groupKey);
             if (mqttMappings == null) {
                 mqttMappings = new HashMap<>();
@@ -170,7 +170,7 @@ abstract class AbstractEcoflowHandler extends BaseThingHandler {
     }
 
     public void handleQuotaMessage(JsonObject payload) {
-        JsonObject params = payload.getAsJsonObject("params");
+        JsonObject params = extractParamsFromQuotaMessage(payload);
         if (params == null) {
             logger.warn("{}: No parameters in quota message payload: {}", serialNumber, payload);
             return;
@@ -201,6 +201,10 @@ abstract class AbstractEcoflowHandler extends BaseThingHandler {
                 logger.warn("{}: Could not update thing state after status message {}", serialNumber, payload, e);
             }
         }
+    }
+
+    protected JsonObject extractParamsFromQuotaMessage(JsonObject payload) {
+        return payload.getAsJsonObject("params");
     }
 
     private void initializeChannelStates(EcoflowApi api, boolean online)
