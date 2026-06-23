@@ -213,10 +213,14 @@ abstract class AbstractEcoflowHandler extends BaseThingHandler {
             JsonObject data = api.getDeviceData(serialNumber);
             logger.trace("{}: Update channel states from JSON data {}", serialNumber, data);
 
-            updateStatesFromJson(data, mappingsByListId);
+            if (data != null) {
+                updateStatesFromJson(data, mappingsByListId);
+                updateStatus(ThingStatus.ONLINE);
+            }
+            // Some devices (e.g. STREAM micro inverter) return no data here and only report via MQTT,
+            // so the stale message watchdog is needed regardless of the 'get all quota' result
             initMqttMessageTimestamps();
             mqttMessageWatchdogTask.scheduleRecurring(2, TimeUnit.MINUTES, false);
-            updateStatus(ThingStatus.ONLINE);
         } else {
             for (Channel channel : getThing().getChannels()) {
                 updateState(channel.getUID(), UnDefType.NULL);
