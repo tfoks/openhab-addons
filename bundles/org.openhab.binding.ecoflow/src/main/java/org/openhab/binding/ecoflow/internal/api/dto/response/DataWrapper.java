@@ -13,6 +13,7 @@
 package org.openhab.binding.ecoflow.internal.api.dto.response;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 
 /**
  * @author Danny Baumann - Initial contribution
@@ -21,9 +22,10 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 public class DataWrapper<T> {
     public final int code;
     public final String message;
-    public final T data;
+    // May be absent even for successful requests, e.g. 'get all quota' for STREAM micro inverters
+    public final @Nullable T data;
 
-    DataWrapper(int code, String message, T data) {
+    DataWrapper(int code, String message, @Nullable T data) {
         this.code = code;
         this.message = message;
         this.data = data;

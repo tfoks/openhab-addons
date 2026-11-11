@@ -263,6 +263,7 @@
 		<label>Status</label>
 		<channels>
 			<channel id="temperature" typeId="stream-microinverter-temperature"/>
+			<channel id="wifi-rssi" typeId="wifi-rssi"/>
 		</channels>
 	</channel-group-type>
 
@@ -273,6 +274,9 @@
 			<channel id="frequency" typeId="ac-input-frequency"/>
 			<channel id="current" typeId="ac-output-current"/>
 			<channel id="power" typeId="ac-output-power"/>
+			<channel id="connection-state" typeId="stream-microinverter-grid-connection-state"/>
+			<channel id="feed-limit" typeId="stream-microinverter-feed-limit"/>
+			<channel id="feed-max" typeId="stream-microinverter-feed-max"/>
 		</channels>
 	</channel-group-type>
 
@@ -694,6 +698,37 @@
 				<option value="ai-schedule">AI intelligent schedule</option>
 			</options>
 		</state>
+	</channel-type>
+
+	<channel-type id="wifi-rssi" advanced="true">
+		<item-type>Number</item-type>
+		<label>Wi-Fi Signal Strength</label>
+		<description>Received signal strength of the device's Wi-Fi connection in dBm</description>
+		<category>QualityOfService</category>
+		<state pattern="%d dBm" readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="stream-microinverter-grid-connection-state" advanced="true">
+		<item-type>String</item-type>
+		<label>Grid Connection State</label>
+		<description>Grid connection state as reported by the device, e.g. PANEL_FEED_GRID</description>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="stream-microinverter-feed-limit">
+		<item-type>Number:Power</item-type>
+		<label>Feed-in Power Limit</label>
+		<description>Currently configured limit for the power fed into the grid</description>
+		<category>Energy</category>
+		<state pattern="%d %unit%" readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="stream-microinverter-feed-max" advanced="true">
+		<item-type>Number:Power</item-type>
+		<label>Maximum Feed-in Power</label>
+		<description>Maximum power the device can feed into the grid</description>
+		<category>Energy</category>
+		<state pattern="%d %unit%" readOnly="true"/>
 	</channel-type>
 
 	<channel-type id="stream-microinverter-temperature">

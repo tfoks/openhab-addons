@@ -63,7 +63,7 @@ abstract class AbstractEcoflowHandler extends BaseThingHandler {
     private final Map<String, Map<String, ChannelMapping>> mappingsByMqttId = new HashMap<>();
     private final Map<String, Instant> mqttMessageTimestampsByGroup = new HashMap<>();
 
-    private static final int MQTT_MESSAGE_TIMEOUT_SECONDS = 5 * 60;
+    private static final int DEFAULT_MQTT_MESSAGE_TIMEOUT_SECONDS = 5 * 60;
 
     protected AbstractEcoflowHandler(Thing thing, List<ChannelMapping> mappings) {
         super(thing);
@@ -170,7 +170,7 @@ abstract class AbstractEcoflowHandler extends BaseThingHandler {
     }
 
     public void handleQuotaMessage(JsonObject payload) {
-        JsonObject params = extractParamsFromQuotaMessage(payload);
+        final JsonObject params = extractParamsFromQuotaMessage(payload);
         if (params == null) {
             logger.warn("{}: No parameters in quota message payload: {}", serialNumber, payload);
             return;
@@ -203,22 +203,30 @@ abstract class AbstractEcoflowHandler extends BaseThingHandler {
         }
     }
 
-    protected JsonObject extractParamsFromQuotaMessage(JsonObject payload) {
+    /**
+     * Maximum time without any quota message before the MQTT subscription is considered stalled.
+     */
+    protected int getMqttMessageTimeoutSeconds() {
+        return DEFAULT_MQTT_MESSAGE_TIMEOUT_SECONDS;
+    }
+
+    protected @Nullable JsonObject extractParamsFromQuotaMessage(JsonObject payload) {
         return payload.getAsJsonObject("params");
     }
 
     private void initializeChannelStates(EcoflowApi api, boolean online)
             throws EcoflowApiException, InterruptedException {
         if (online) {
-            JsonObject data = api.getDeviceData(serialNumber);
+            final JsonObject data = api.getDeviceData(serialNumber);
             logger.trace("{}: Update channel states from JSON data {}", serialNumber, data);
 
             if (data != null) {
                 updateStatesFromJson(data, mappingsByListId);
-                updateStatus(ThingStatus.ONLINE);
             }
-            // Some devices (e.g. STREAM micro inverter) return no data here and only report via MQTT,
-            // so the stale message watchdog is needed regardless of the 'get all quota' result
+            // Some devices (e.g. STREAM micro inverter) return no data here and only report via MQTT.
+            // The cloud reports the device as online though, so reflect that and rely on the stale
+            // message watchdog regardless of the 'get all quota' result.
+            updateStatus(ThingStatus.ONLINE);
             initMqttMessageTimestamps();
             mqttMessageWatchdogTask.scheduleRecurring(2, TimeUnit.MINUTES, false);
         } else {
@@ -249,7 +257,7 @@ abstract class AbstractEcoflowHandler extends BaseThingHandler {
             for (Map.Entry<String, Instant> entry : mqttMessageTimestampsByGroup.entrySet()) {
                 logger.trace("{}: MQTT message group {} last timestamp: {} ago", serialNumber, entry.getKey(),
                         Duration.between(entry.getValue(), now));
-                if (entry.getValue().plusSeconds(MQTT_MESSAGE_TIMEOUT_SECONDS).isBefore(now)) {
+                if (entry.getValue().plusSeconds(getMqttMessageTimeoutSeconds()).isBefore(now)) {
                     staleGroups.add(entry.getKey());
                 }
             }

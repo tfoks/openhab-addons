@@ -73,10 +73,12 @@ public class EcoflowApi {
         ContentResponse response = executeRequest(createHttpRequest(HttpMethod.GET, url, null));
         Type responseType = new TypeToken<DataWrapper<List<DeviceListResponseEntry>>>() {
         }.getType();
-        return handleResponseWrapper(gson.fromJson(response.getContentAsString(), responseType));
+        List<DeviceListResponseEntry> devices = handleResponseWrapper(
+                gson.fromJson(response.getContentAsString(), responseType));
+        return devices != null ? devices : List.of();
     }
 
-    public JsonObject getDeviceData(String serialNumber) throws EcoflowApiException, InterruptedException {
+    public @Nullable JsonObject getDeviceData(String serialNumber) throws EcoflowApiException, InterruptedException {
         final String url = "https://api.ecoflow.com/iot-open/sign/device/quota/all?sn=" + serialNumber;
         final JsonObject payload = new JsonObject();
         payload.addProperty("sn", serialNumber);
@@ -101,7 +103,7 @@ public class EcoflowApi {
         ContentResponse response = executeRequest(createHttpRequest(HttpMethod.POST, url, payload));
         Type responseType = new TypeToken<DataWrapper<JsonObject>>() {
         }.getType();
-        return handleResponseWrapper(gson.fromJson(response.getContentAsString(), responseType));
+        return requireData(handleResponseWrapper(gson.fromJson(response.getContentAsString(), responseType)));
     }
 
     public void sendSetRequest(String serialNumber, JsonObject payload)
@@ -119,7 +121,7 @@ public class EcoflowApi {
         ContentResponse response = executeRequest(createHttpRequest(HttpMethod.GET, url, null));
         Type responseType = new TypeToken<DataWrapper<MqttConnectionData>>() {
         }.getType();
-        return handleResponseWrapper(gson.fromJson(response.getContentAsString(), responseType));
+        return requireData(handleResponseWrapper(gson.fromJson(response.getContentAsString(), responseType)));
     }
 
     private Request createHttpRequest(HttpMethod method, String url, @Nullable JsonObject payload)
@@ -203,7 +205,14 @@ public class EcoflowApi {
         }
     }
 
-    private <T> T handleResponseWrapper(@Nullable DataWrapper<T> response) throws EcoflowApiException {
+    private <T> T requireData(@Nullable T data) throws EcoflowApiException {
+        if (data == null) {
+            throw new EcoflowApiException("No data in API response");
+        }
+        return data;
+    }
+
+    private <T> @Nullable T handleResponseWrapper(@Nullable DataWrapper<T> response) throws EcoflowApiException {
         if (response == null) {
             // should not happen in practice
             throw new EcoflowApiException("No response received");

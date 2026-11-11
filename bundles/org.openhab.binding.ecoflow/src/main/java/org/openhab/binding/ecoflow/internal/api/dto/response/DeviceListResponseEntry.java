@@ -13,6 +13,7 @@
 package org.openhab.binding.ecoflow.internal.api.dto.response;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 
 import com.google.gson.annotations.SerializedName;
 
@@ -23,11 +24,13 @@ import com.google.gson.annotations.SerializedName;
 public class DeviceListResponseEntry {
     @SerializedName("sn")
     public final String serialNumber;
-    public final String deviceName;
+    public final @Nullable String deviceName;
     public final int online;
-    public final String productName;
+    // Not reported by newer devices, e.g. the STREAM series
+    public final @Nullable String productName;
 
-    DeviceListResponseEntry(String serialNumber, String deviceName, int online, String productName) {
+    DeviceListResponseEntry(String serialNumber, @Nullable String deviceName, int online,
+            @Nullable String productName) {
         this.serialNumber = serialNumber;
         this.deviceName = deviceName;
         this.online = online;

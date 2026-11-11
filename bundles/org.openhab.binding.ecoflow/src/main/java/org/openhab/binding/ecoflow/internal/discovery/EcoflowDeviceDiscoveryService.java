@@ -15,6 +15,7 @@ package org.openhab.binding.ecoflow.internal.discovery;
 import static org.openhab.binding.ecoflow.internal.EcoflowBindingConstants.*;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,6 +61,9 @@ public class EcoflowDeviceDiscoveryService extends AbstractThingHandlerDiscovery
             Map.entry("STREAM AC Pro", THING_TYPE_STREAM_PRO_ULTRA),
             Map.entry("STREAM Ultra", THING_TYPE_STREAM_PRO_ULTRA),
             Map.entry("STREAM Ultra X", THING_TYPE_STREAM_PRO_ULTRA));
+
+    // Serial number prefixes observed for devices whose device list entry lacks a product name
+    private static final Map<String, String> SERIAL_PREFIX_TO_PRODUCT_NAME = Map.of("BK01Z1", "STREAM Microinverter");
 
     private Optional<EcoflowApi> api = Optional.empty();
     private final SchedulerTask onDemandScanTask = new SchedulerTask(scheduler, logger, "OnDemandScan",
@@ -112,19 +116,15 @@ public class EcoflowDeviceDiscoveryService extends AbstractThingHandlerDiscovery
             Instant timestampOfLastScan = getTimestampOfLastScan();
             try {
                 List<DeviceListResponseEntry> devices = api.getDeviceList();
-                if (devices != null) {
-                    logger.debug("Ecoflow discovery found {} devices", devices.size());
-                    for (DeviceListResponseEntry device : devices) {
-                        deviceDiscovered(device);
+                logger.debug("Ecoflow discovery found {} devices", devices.size());
+                for (DeviceListResponseEntry device : devices) {
+                    deviceDiscovered(device);
+                }
+                for (Thing thing : thingHandler.getThing().getThings()) {
+                    String serial = thing.getUID().getId();
+                    if (!devices.stream().anyMatch(d -> serial.equals(d.serialNumber))) {
+                        thingRemoved(thing.getUID());
                     }
-                    for (Thing thing : thingHandler.getThing().getThings()) {
-                        String serial = thing.getUID().getId();
-                        if (!devices.stream().anyMatch(d -> serial.equals(d.serialNumber))) {
-                            thingRemoved(thing.getUID());
-                        }
-                    }
-                } else {
-                    logger.debug("No devices available in Ecoflow API");
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -137,12 +137,7 @@ public class EcoflowDeviceDiscoveryService extends AbstractThingHandlerDiscovery
     }
 
     private void deviceDiscovered(DeviceListResponseEntry device) {
-        Optional<String> productName = Optional.ofNullable(device.productName);
-        if (productName.isEmpty()) {
-            productName = PRODUCT_NAME_TO_THING_TYPE.keySet().stream().filter(pn -> device.deviceName.startsWith(pn))
-                    .findFirst();
-        }
-
+        Optional<String> productName = resolveProductName(device);
         ThingTypeUID thingTypeUID = productName.map(PRODUCT_NAME_TO_THING_TYPE::get).orElse(null);
         if (thingTypeUID == null) {
             logger.debug("Found device {} named {} with unhandled product type {}", device.serialNumber,
@@ -150,12 +145,38 @@ public class EcoflowDeviceDiscoveryService extends AbstractThingHandlerDiscovery
             return;
         }
 
+        final String deviceName = device.deviceName;
+        String label = deviceName != null ? deviceName : productName.get();
         ThingUID thingUID = new ThingUID(thingTypeUID, thingHandler.getThing().getUID(), device.serialNumber);
         DiscoveryResult discoveryResult = DiscoveryResultBuilder.create(thingUID)
-                .withBridge(thingHandler.getThing().getUID()).withLabel(device.deviceName)
+                .withBridge(thingHandler.getThing().getUID()).withLabel(label)
                 .withProperty(Thing.PROPERTY_SERIAL_NUMBER, device.serialNumber)
-                .withProperty(Thing.PROPERTY_MODEL_ID, device.productName)
+                .withProperty(Thing.PROPERTY_MODEL_ID, productName.get())
                 .withRepresentationProperty(Thing.PROPERTY_SERIAL_NUMBER).build();
         thingDiscovered(discoveryResult);
+    }
+
+    /**
+     * Determines the product name of a device. Newer devices (e.g. the STREAM series) don't report a product name
+     * in the device list, so fall back to the device name and then to the serial number prefix. The device name is
+     * localized by the EcoFlow app (e.g. 'STREAM Mikro-Wechselrichter-2013' for German accounts) and can be changed
+     * by the user, so it is not sufficient on its own.
+     */
+    private Optional<String> resolveProductName(DeviceListResponseEntry device) {
+        final String productName = device.productName;
+        if (productName != null) {
+            return Optional.of(productName);
+        }
+        final String deviceName = device.deviceName;
+        if (deviceName != null) {
+            // Use the longest matching prefix, so e.g. 'STREAM AC Pro' wins over 'STREAM AC'
+            Optional<String> byName = PRODUCT_NAME_TO_THING_TYPE.keySet().stream().filter(deviceName::startsWith)
+                    .max(Comparator.comparingInt(String::length));
+            if (byName.isPresent()) {
+                return byName;
+            }
+        }
+        return SERIAL_PREFIX_TO_PRODUCT_NAME.entrySet().stream().filter(e -> device.serialNumber.startsWith(e.getKey()))
+                .map(Map.Entry::getValue).findFirst();
     }
 }

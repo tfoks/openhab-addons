@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2025 Contributors to the openHAB project
+ * Copyright (c) 2010-2026 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.library.types.PercentType;
@@ -72,7 +73,7 @@ public class StreamHandler extends AbstractEcoflowHandler {
     }
 
     @Override
-    protected JsonObject extractParamsFromQuotaMessage(JsonObject payload) {
+    protected @Nullable JsonObject extractParamsFromQuotaMessage(JsonObject payload) {
         return payload;
     }
 

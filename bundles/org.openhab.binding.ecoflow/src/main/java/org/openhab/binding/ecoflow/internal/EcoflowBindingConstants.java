@@ -126,6 +126,10 @@ public class EcoflowBindingConstants {
     // Stream channels
     public class StreamMicroInverterChannels {
         public static final String CHANNEL_ID_TEMPERATURE = "status#temperature";
+        public static final String CHANNEL_ID_WIFI_RSSI = "status#wifi-rssi";
+        public static final String CHANNEL_ID_GRID_CONNECTION_STATE = "grid#connection-state";
+        public static final String CHANNEL_ID_GRID_FEED_LIMIT = "grid#feed-limit";
+        public static final String CHANNEL_ID_GRID_FEED_MAX = "grid#feed-max";
         public static final String CHANNEL_ID_GRID_CURRENT = "grid#current";
         public static final String CHANNEL_ID_GRID_VOLTAGE = "grid#voltage";
         public static final String CHANNEL_ID_GRID_POWER = "grid#power";
